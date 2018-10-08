@@ -1,0 +1,85 @@
+# Name
+
+Using RSLVQ as a classifier layer in a neural network
+RSLVQ als Klassifizierungs-Layer in einem neuronalen Netzwerk
+
+(alternativ) Testing the viability of a neural network with RSLVQ as a classifier layer
+
+# Aufgabenstellung der Arbeit
+
+Die Arbeit hat das Ziel, die Verwendbarkeit von LVQ als Klassifizierungs-Layer in einem CNN zu testen. Um im Rahmen einer Bachelorarbeit zu bleiben, ist der Umfang auf eine LVQ-Art (RSLVQ) und zwei konkrete Netzwerke beschränkt. Als Datensatz werden Bilder von Hunderassen verwendet.
+
+Im ersten Teil wird ein existierendes Netzwerk genommen und dessen Classifier-Layer durch eine eigene RSLVQ-Implementierung ausgetauscht. Ziel ist, die Verwendbarkeit von RSLVQ als Classifier zu testen; insbesondere mit Hinblick auf die Verbesserung der Wiederverwendbarkeit vortrainierter Netzwerke (transfer learning).
+Als Netzwerk wird Xception verwendet, da dies ein weit verbreitetes Netzwerk mit guter Dokumentation ist, welches auch einfach vortrainiert zu finden ist. Außerdem ist es mit Keras verwendbar, was die Implementierung und das Abfragen der Bottleneck-Features in Python einfach macht.
+
+Im zweiten Teil wird ein neues CNN erstellt, welches direkt einen RSLVQ-Layer als Classifier hat. Hierzu wird im LVQ-Algorithmus ein Fehler berechnet und an das Netzwerk weiter gegeben. Dies ermöglicht das Trainieren wie bei einem üblichen CNN. Das Netzwerk wird anschließend auf den Datensatz trainiert und mit vergleichbaren Netzwerken verglichen. Ziel hierbei ist es, zu testen, ob RSLVQ als normaler Classifier sinnvoll verwendet werden kann und ob die Weitergabe der LVQ-Fehler das Netzwerk besser trainiert als eine normale Aktivierungsfunktion.
+
+Der wissenschaftliche Anspruch der Arbeit besteht daraus, die Verwendbarkeit und Konkurrenzfähigkeit eines LVQ-Classifieres zu testen. Insbesondere muss auf die Einbindung und die Fehlerrate eingegangen werden. Auch können verschiedene Parameter (z.B. Lernrate, Größe der Testdaten, ...) varriiert werden, was getestet werden muss.
+
+# Fragen/Ziele der Arbeit
+
+- Wie ist die Performance von RSLVQ, wenn man es als Classifier für die Bottleneck-Features von einem existierenden Netzwerk für die Klassifizierung von Hunderassen verwendet?
+- Kann ein Netzwerk mit einem RSLVQ-Classifier sinnvoll für den Hunderassen-Datensatz trainiert werden?
+- Kann ein Netzwerk mit einem RSLVQ-Classifier konkurrenzfähige Performance bei dem Hunderassen-Datensatz erreichen?
+
+# Abgrenzung
+
+Explizit _nicht_ geklärt werden soll:
+- Die Performance anderer LVQ-Varianten an Stelle von RSLVQ
+- Die Awendbarkeit von einem LVQ-Classifier auf andere Datensätze als den Hunderassen-Datensatz
+- Welche CNN-Struktur sich am besten für die Klassifizierung von Hunderassen eignet
+- Wie LVQ in andere Frameworks als Keras implementiert werden kann
+
+Einige dieser Punkte sind allerdings für weiterführende Arbeiten interessant.
+
+# Zeitplan
+
+- Oktober bis Mitte November: Literaturrecherche, Einarbeitung in Keras
+- Bis Ende November: RSLVQ implementieren (idealerweise mit fast fertiger Error-Propagation)
+- Dezember: Xception + LVQ Tests anfangen, CNN mit LVQ-Classifier erstellen und trainieren (Teil II)
+- Januar: LVQ mit den Bottleneck-Features von Xception testen, Parameter varriieren (im Prinzip Recherche Teil I fertig) und Grundlagentext der Arbeit schreiben (Einführung, Technik etc)
+- Februar: Ergebnisse darstellen und analysieren, Rest der Arbeit schreiben
+
+Anmerkung: Teil II ist vorgezogen, da dabei ein ganzes Netzwerk trainiert werden muss, was deutlich länger dauert als das Training eines Layers über die Bottleneck-Features. Außerdem ist der Februar als Puffer bewusst leerer gehalten.
+
+# Wichtige Internetquellen
+
+- https://keras.io/ Keras Webseite/Dokumentation
+- https://www.kaggle.com/ Vergleich von Netzwerken (verwandt mit ImageNet)
+
+# Relevante Literatur
+
+- Nova, D. and Estévez, P.A., 2014. A review of learning vector quantization classifiers. Neural Computing and Applications, 25(3-4), pp.511-524. (10.1007/s00521-013-1535-3)
+- Seo, S., Bode, M. and Obermayer, K., 2003. Soft nearest prototype classification. IEEE Transactions on Neural Networks, 14(2), pp.390-398.
+- Seo, S. and Obermayer, K., 2003. Soft learning vector quantization. Neural computation, 15(7), pp.1589-1604.
+- Goodfellow, I., Bengio, Y., Courville, A. and Bengio, Y., 2016. Deep learning (Vol. 1). Cambridge: MIT press.
+- Chollet, F., 2017. Xception: Deep learning with depthwise separable convolutions. arXiv preprint, pp.1610-02357.
+
+# Gliederung
+
+Die Gliederung ist Englisch, da die Arbeit in Englisch geschrieben wird.
+
+1. Introduction
+1.1 Background
+1.2 Target of the thesis
+1.3 LVQ
+1.3.1 Introduction to LVQ
+1.3.2 Explanation of RSLVQ
+1.3.3 Why RSLVQ was chosen
+1.4 Xception
+1.4.1 Description of Xception
+1.4.2 Why Xception/Keras was chosen
+2. Replacing the classifier layer of an existing neural network with LVQ
+2.1 Theoretical description
+2.2 Description of the implementation
+2.3 Comparison of the performance to the original network
+3. Traning a neural network with an LVQ classifier layer
+3.1 Description of the network
+3.2 Description of the error propagation
+3.3 Testing the network
+3.3.1 Description of the dataset
+3.3.2 Results
+4. Results
+4.1 Summary
+4.2 Interpretation of the results
+4.3 Future work
