@@ -1,9 +1,7 @@
 # Name
 
-Using RSLVQ as a classifier layer in a neural network
-RSLVQ als Klassifizierungs-Layer in einem neuronalen Netzwerk
-
-(alternativ) Testing the viability of a neural network with RSLVQ as a classifier layer
+Using RSLVQ as a classifier layer in a convolutional neural network
+RSLVQ als Klassifizierungs-Layer in einem convolutional neural network
 
 # Aufgabenstellung der Arbeit
 
@@ -19,7 +17,7 @@ Der wissenschaftliche Anspruch der Arbeit besteht daraus, die Verwendbarkeit und
 # Fragen/Ziele der Arbeit
 
 - Wie ist die Performance von RSLVQ, wenn man es als Classifier für die Bottleneck-Features von einem existierenden Netzwerk für die Klassifizierung von Hunderassen verwendet?
-- Kann ein Netzwerk mit einem RSLVQ-Classifier sinnvoll für den Hunderassen-Datensatz trainiert werden?
+- Kann ein Netzwerk mit einem RSLVQ-Classifier, der Fehler zu einem Max-Pooling oder Convolutional Layer propagiert, sinnvoll für den Hunderassen-Datensatz trainiert werden?
 - Kann ein Netzwerk mit einem RSLVQ-Classifier konkurrenzfähige Performance bei dem Hunderassen-Datensatz erreichen?
 
 # Abgrenzung
@@ -29,14 +27,15 @@ Explizit _nicht_ geklärt werden soll:
 - Die Awendbarkeit von einem LVQ-Classifier auf andere Datensätze als den Hunderassen-Datensatz
 - Welche CNN-Struktur sich am besten für die Klassifizierung von Hunderassen eignet
 - Wie LVQ in andere Frameworks als Keras implementiert werden kann
+- Wie die propagierten Fehler für alle Arten von Layern angepasst werden können
 
 Einige dieser Punkte sind allerdings für weiterführende Arbeiten interessant.
 
 # Zeitplan
 
-- Oktober bis Mitte November: Literaturrecherche, Einarbeitung in Keras
-- Bis Ende November: RSLVQ implementieren (idealerweise mit fast fertiger Error-Propagation)
-- Dezember: Xception + LVQ Tests anfangen, CNN mit LVQ-Classifier erstellen und trainieren (Teil II)
+- Oktober: Literaturrecherche, Einarbeitung in Keras
+- November: RSLVQ implementieren (idealerweise mit fast fertiger Error-Propagation), Xception + LVQ Tests anfangen
+- Dezember: CNN mit LVQ-Classifier erstellen und trainieren (Teil II)
 - Januar: LVQ mit den Bottleneck-Features von Xception testen, Parameter varriieren (im Prinzip Recherche Teil I fertig) und Grundlagentext der Arbeit schreiben (Einführung, Technik etc)
 - Februar: Ergebnisse darstellen und analysieren, Rest der Arbeit schreiben
 
@@ -63,14 +62,13 @@ Die Gliederung ist Englisch, da die Arbeit in Englisch geschrieben wird.
 1.1 Background
 1.2 Target of the thesis
 1.3 LVQ
-1.3.1 Introduction to LVQ
-1.3.2 Explanation of RSLVQ
-1.3.3 Why RSLVQ was chosen
+1.3.1 Explanation of RSLVQ
+1.3.2 Reason for using RSLVQ
 1.4 Xception
 1.4.1 Description of Xception
-1.4.2 Why Xception/Keras was chosen
+1.4.2 Reason for using Xception/Keras
 2. Replacing the classifier layer of an existing neural network with LVQ
-2.1 Theoretical description
+2.1 Idea
 2.2 Description of the implementation
 2.3 Comparison of the performance to the original network
 3. Traning a neural network with an LVQ classifier layer
