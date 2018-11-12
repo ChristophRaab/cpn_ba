@@ -1,11 +1,6 @@
 from keras import backend as K
 from keras.engine.topology import Layer
-
-
-class RslvqImplementation:
-
-    def __init__(self):
-        pass
+from sklearn_lvq import RslvqModel
 
 
 # class template from keras for a layer
@@ -16,13 +11,11 @@ class RslvqLayer(Layer):
 
     def __init__(self, output_dim, **kwargs):
         self.output_dim = output_dim
+        self.rslvq = None
         super(RslvqLayer, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        self.kernel = self.add_weight(name='kernel',
-                                      shape=(input_shape[1], self.output_dim),
-                                      initializer='uniform',
-                                      trainable=True)
+        self.rslvq = RslvqModel(prototypes_per_class=2)
         super(RslvqLayer, self).build(input_shape)
 
     def call(self, x, **kwargs):
