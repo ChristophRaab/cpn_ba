@@ -1,0 +1,3 @@
+[submodule "RSLVQ"]
+	path = RSLVQ
+	url = git@github.com:ChristophRaab/RSLVQ.git
