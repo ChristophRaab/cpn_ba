@@ -181,11 +181,11 @@ class LvqTester:
         """
         rslvq = nRSLVQ(prototypes_per_class=10, sigma=0.5, batch_size=200, n_epochs=20)
         tests = []
-        for sigma in self.frange(0.2, 1.1, 0.2):
-            for batch_size in range(20, 400, 20):
-                for epochs in range(1, 20):
-                    for prototypes in range(1, 12):
-                        tests.append(LvqParams(sigma, prototypes, epochs, batch_size))
+        for sigma in [0.2, 0.4, 0.6, 0.8, 1.0]:                    # 5 steps
+            for batch_size in [1, 5, 10, 20, 50, 100, 200, 400]:   # 8 steps
+                for epochs in [1, 2, 4, 8, 12, 16]:                # 6 steps
+                    for prototypes in [1, 2, 3, 4, 6, 8, 10, 12]:  # 8 steps
+                        tests.append(LvqParams(sigma, prototypes, epochs, batch_size))  # = about 1,9k tests
 
         return sorted(tests)
 
@@ -241,5 +241,6 @@ class LvqTester:
 if __name__ == "__main__":
     tester = LvqTester()
     tests = tester.createTestScenarios()
+    print('Running %d tests.' % len(tests))
     tester.runTestsParallel(tests)
 
