@@ -7,10 +7,12 @@ from keras.layers import Dropout, Flatten, Dense
 from keras.models import Sequential
 import keras.backend as kbackend
 from keras.callbacks import ModelCheckpoint
+from queue import Empty as QEmpty
 from sklearn.datasets import load_files
 from keras.utils import np_utils
 import numpy as np
 from RSLVQ.rslvq import RSLVQ as nRSLVQ
+from multiprocessing import Process as MProcess, Queue, Lock as MLock
 from glob import glob
 from tqdm import tqdm
 import pickle
@@ -120,8 +122,8 @@ class LvqTester:
         self.train_targets_indexed = self.mapTargetsToIndexed(self.train_targets)
         self.test_targets_indexed = self.mapTargetsToIndexed(self.test_targets)
 
-        self.tests = []
-        self.results = []
+        self.tests = Queue(1)
+        self.results = Queue(1)
         self.lock = threading.Lock()
 
     def meanBottleneckFeatures(self, features):
@@ -190,52 +192,77 @@ class LvqTester:
 
         return sorted(tests)
 
-    def runTestsParallel(self, tests, threads=3):
+    def runTestsParallel(self, tests, threads=3, use_multiprocessing=False):
         """
         Starts parallel test threads. For now, this method is _not_ threadsafe!
         :param tests: The tests to run.
         :param threads: The amount of threads to use
+        :param use_multiprocessing: Whether to use the multiprocessing library instead of thread
         :return:
         """
-        if len(self.tests) != 0:
+        if not self.tests.empty():
             raise PermissionError("This method is still running in another thread!")
 
-        self.tests = tests
-        self.results = []
+        self.tests = Queue(len(tests))
+        self.results = Queue(len(tests))
+        for i in range(len(tests)):
+            self.tests.put(tests[i], False)
+
         thls = []  # actually threads, but that name was already taken
 
         for n in range(threads):
-            th = threading.Thread(target=self._threadEntry, args=(n,))
+            th = None
+            if use_multiprocessing:
+                th = MProcess(target=self._threadEntry, args=(n, True,))
+            else:
+                th = threading.Thread(target=self._threadEntry, args=(n, True,))
             th.start()
             thls.append(th)
 
         for n in range(threads):
             thls[n].join()
 
-        self.results.sort(key=lambda x: x[4])  # sort by accuracy
+        res = []
+        while True:  # read everything from the query
+            try:
+                res.append(self.results.get_nowait())
+            except QEmpty:
+                break
+
+        res.sort(key=lambda x: x[4])  # sort by accuracy
         print("")
         print(" Results ")
         print("---------")
-        for i in range(len(self.results)):
-            print('%sCorrectly classified %d out of %d samples (%d wrong) => Accuracy of %f%%' % self.results[i])
+        for i in range(len(res)):
+            print('%sCorrectly classified %d out of %d samples (%d wrong) => Accuracy of %f%%' % res[i])
 
-    def _threadEntry(self, num):
+    def _threadEntry(self, num, isqueue):
         """
         This method is the entry point for a test thread.
         :param num: The thread index.
         """
         while True:
-            self.lock.acquire()
-            if len(self.tests) == 0:
-                return  # ran all tests
-            lvq = self.tests.pop(0)
-            self.lock.release()
+            lvq = None
+            if isqueue:
+                try:
+                    lvq = self.tests.get(False)
+                except QEmpty:
+                    return  # ran all tests
+            else:
+                self.lock.acquire()
+                if len(self.tests) == 0:
+                    return  # ran all tests
+                lvq = self.tests.pop(0)
+                self.lock.release()
 
             print("Thread %d -- starting [%s]" % (num, str(lvq)))
             dt = self.testLvq(lvq.createRslvq(), str(lvq))
 
             self.lock.acquire()
-            self.results.append(dt)
+            if isqueue:
+                self.results.put(dt, False)
+            else:
+                self.results.append(dt)
             self.lock.release()
 
 
@@ -246,6 +273,8 @@ def parse_args():
     parser.add_argument('--code-path', '-f', type=str, default='CodeData', help='Path to the learning dataset.')
     parser.add_argument('--big-features', action='store_true',
                         help='Whether to mean the input to big features or small ones.')
+    parser.add_argument('--use-mp', '-m', action='store_true',
+                        help='Whether to use the multiprocessing library instead of threading.')
     return parser.parse_args()
 
 
@@ -253,7 +282,7 @@ if __name__ == "__main__":
     args = parse_args()
     tester = LvqTester(big_features=args.big_features, path=args.code_path)
     tests = tester.createTestScenarios()
-    print('Running %d tests with%s big feature space and %d threads.'
-          % (len(tests), "out" if not args.big_features else "", args.threads))
-    tester.runTestsParallel(tests, threads=args.threads)
+    print('Running %d tests with%s big feature space and %d %s.'
+          % (len(tests), "out" if not args.big_features else "", args.threads, "processes" if args.use_mp else "threads"))
+    tester.runTestsParallel(tests, threads=args.threads, use_multiprocessing=args.use_mp)
 
