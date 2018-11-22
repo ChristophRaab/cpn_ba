@@ -15,6 +15,7 @@ from glob import glob
 from tqdm import tqdm
 import pickle
 from PIL import ImageFile
+import threading
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
@@ -55,74 +56,164 @@ def mapClassArrayToIndexArray(arr):
     return list(map(lambda x: mapClassToIndex(x), arr))
 
 
+class LvqParams:
+    def __init__(self, sigma, prototypes_per_class, epochs, batch_size):
+        self.sigma = sigma
+        self.prototypes_per_class = prototypes_per_class
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.cost = self.computeCost()
+
+    def computeCost(self):
+        """
+        Computes a loose approximation of the runtime cost
+        :return:
+        """
+        # this assumes that a higher batch size can process more data at once and is therefore faster
+        return self.prototypes_per_class * self.prototypes_per_class * self.epochs * (1/self.batch_size)
+
+    def __str__(self):
+        """
+        Returns a string represenation of the class
+        :return:
+        """
+        return "LVQ with sigma=%f and %d prototypes per class; using batch size %d on %d epochs" % (
+            self.sigma, self.prototypes_per_class, self.batch_size, self.epochs
+        )
+
+    def createRslvq(self):
+        """
+        Creates an instance of the RSLVQ implementation using the given parameters
+        :return:
+        """
+        return nRSLVQ(
+            prototypes_per_class=self.prototypes_per_class,
+            sigma=self.sigma,
+            batch_size=self.batch_size,
+            n_epochs=self.epochs
+        )
+
+    def __lt__(self, other):
+        return self.cost < other.cost
+
+
+class LvqTester:
+    def __init__(self, path="CodeData"):
+        self.bottleneck_features = np.load(path + '/DogXceptionData.npz')
+
+        self.train_set = self.meanBottleneckFeatures(self.bottleneck_features['train'])
+        self.valid_set = self.meanBottleneckFeatures(self.bottleneck_features['valid'])
+        self.test_set = self.meanBottleneckFeatures(self.bottleneck_features['test'])
+
+        self.train_files, self.train_targets = load_dataset(path + '/dogImages/train')
+        self.valid_files, self.valid_targets = load_dataset(path + '/dogImages/valid')
+        self.test_files, self.test_targets = load_dataset(path + '/dogImages/test')
+
+        self.valid_targets_indexed = self.mapTargetsToIndexed(self.valid_targets)
+        self.train_targets_indexed = self.mapTargetsToIndexed(self.train_targets)
+        self.test_targets_indexed = self.mapTargetsToIndexed(self.test_targets)
+
+        self.tests = []
+        self.lock = threading.Lock()
+
+    def meanBottleneckFeatures(self, features):
+        """
+        Flattens the multidimensional bottleneck featues
+        :return:
+        """
+        return np.mean(features, axis=(2, 3))
+
+    def mapTargetsToIndexed(self, targets):
+        """
+        Maps NN targets (1 at the index n) to numerical targets (n)
+        :param targets: The targets to map
+        :return: A numpy array with mapped targets
+        """
+        return np.array(mapClassArrayToIndexArray(targets))
+
+    def testLvq(self, lvq, descr=""):
+        """
+        Tests an LVQ implementation with the given training data and prints the results
+        :param descr: A string describing the LVQ implementation.
+        :param lvq: The LVQ implementation. Must have a fit and a predict method.
+        :return: A tuple of (description, correct count, total count, wrong count, accurary percentage)
+        """
+        fitdata = lvq.fit(self.train_set, self.train_targets_indexed)
+
+        predict = lvq.predict(self.test_set)
+
+        diff = list(map(lambda x: 1 if x == 0 else 0, predict - self.test_targets_indexed))
+        total = len(diff)
+        correct = sum(diff)
+        wrong = total - correct
+
+        if descr != "":
+            descr = "[%s] " % descr
+
+        results = (descr, correct, total, wrong, (correct/total) * 100)
+
+        print('%sCorrectly classified %d out of %d samples (%d wrong) => Accuracy of %f%%' % results)
+        return results
+
+    def frange(self, x, y, jump):
+        """
+        Like range(), but for floats
+        :param x: Start of the range
+        :param y: (inclusive) End of the range
+        :param jump: Jump size
+        :return:
+        """
+        while x <= y:
+            yield x
+            x += jump
+
+    def createTestScenarios(self):
+        """
+        Creates a set of test parameters to check for.
+        :return: A list of test parameters, sorted by cost
+        """
+        rslvq = nRSLVQ(prototypes_per_class=10, sigma=0.5, batch_size=200, n_epochs=20)
+        tests = []
+        for sigma in self.frange(0.2, 1.1, 0.2):
+            for batch_size in range(20, 400, 20):
+                for epochs in range(1, 20):
+                    for prototypes in range(1, 12):
+                        tests.append(LvqParams(sigma, prototypes, epochs, batch_size))
+
+        return sorted(tests)
+
+    def runTestsParallel(self, tests, threads=3):
+        """
+        Starts parallel test threads. For now, this method should only be called once!
+        :param tests: The tests to run.
+        :param threads: The amount of threads to use
+        :return:
+        """
+        if len(self.tests) != 0:
+            raise PermissionError("This method may only be called once (for now)!")
+
+        self.tests = tests
+        for n in range(threads):
+            threading.Thread(target=self._threadEntry, args=(n,)).start()
+
+    def _threadEntry(self, num):
+        """
+        This method is the entry point for a test thread.
+        :param num: The thread index.
+        """
+        while True:
+            self.lock.acquire()
+            if len(self.tests) == 0:
+                return  # ran all tests
+            lvq = self.tests.pop(0)
+            self.lock.release()
+
+            print("Thread %d -- starting [%s]" % (num, str(lvq)))
+            self.testLvq(lvq.createRslvq(), str(lvq))
+
+
 if __name__ == "__main__":
-    # define function to load train, test, and validation datasets
-    # load train, test, and validation datasets
-    train_files, train_targets = load_dataset('CodeData/dogImages/train')
-    valid_files, valid_targets = load_dataset('CodeData/dogImages/valid')
-    test_files, test_targets = load_dataset('CodeData/dogImages/test')
+    tester = LvqTester()
+    tests = tester.createTestScenarios()
+    tester.runTestsParallel(tests)
 
-    # load list of dog names
-    dog_names = [item[20:-1] for item in sorted(glob("CodeData/dogImages/train/*/"))]
-
-    # load the network
-    #Xception_model = Xception(weights='imagenet')
-    # pre-process the data for Keras
-    # train_tensors = paths_to_tensor(train_files).astype('float32') / 255
-    # valid_tensors = paths_to_tensor(valid_files).astype('float32') / 255
-    # test_tensors = paths_to_tensor(test_files).astype('float32') / 255
-
-    # get the bottleneck features
-    bottleneck_features = np.load('CodeData/DogXceptionData.npz')
-    train_Xcep = bottleneck_features['train']
-    valid_Xcep = bottleneck_features['valid']
-    test_Xcep = bottleneck_features['test']
-
-    shape = train_Xcep.shape[1:]
-
-    model = Sequential()
-    model.add(GlobalAveragePooling2D(input_shape=train_Xcep.shape[1:]))
-    model.add(Dense(133, activation='softmax'))
-
-    model.summary()
-
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
-
-    checkpointer = ModelCheckpoint(filepath='weights.try1.hdf5',
-                                   verbose=1, save_best_only=True)
-
-    # model.fit(train_Xcep, train_targets,
-    #           validation_data=(valid_Xcep, valid_targets),
-    #           epochs=20, batch_size=20, callbacks=[checkpointer], verbose=1)
-
-    train_meaned = np.mean(train_Xcep, axis=(2, 3))
-    train_targets_indexed = np.array(mapClassArrayToIndexArray(train_targets))  # '.astype('float64') / 133
-    valid_meaned = np.mean(valid_Xcep, axis=(2, 3))
-    valid_targets_indexed = np.array(mapClassArrayToIndexArray(valid_targets))
-
-
-    print("Starting RSLVQ trainig")
-
-    #rslvq = RslvqModel(max_iter=100, gtol=1e-4, sigma=0.2)
-    rslvq = nRSLVQ(prototypes_per_class=10, sigma=0.5, batch_size=200, n_epochs=20)
-    fitdata = rslvq.fit(train_meaned, train_targets_indexed)
-
-    print("Starting RSLVQ prediction")
-    predict = rslvq.predict(valid_meaned)
-
-    pickle.dump(predict, open("/srv/ba-dumps/predict-%s-sigma%f-lvq.p" % ("raab", rslvq.sigma), "wb"))
-    # print(predict)
-
-    diff = list(map(lambda x: 1 if x == 0 else 0, predict - valid_targets_indexed))
-    total = len(diff)
-    correct = sum(diff)
-    wrong = total - correct
-
-    print('Correctly classified %d out of %d samples (%d wrong) => Accuracy of %f%%\n' % (correct, total, wrong, (correct/total) * 100))
-
-    # print statistics about the dataset
-    print('There are %d total dog categories.' % len(dog_names))
-    print('There are %s total dog images.\n' % len(np.hstack([train_files, valid_files, test_files])))
-    print('There are %d training dog images.' % len(train_files))
-    print('There are %d validation dog images.' % len(valid_files))
-    print('There are %d test dog images.'% len(test_files))
