@@ -16,6 +16,7 @@ from tqdm import tqdm
 import pickle
 from PIL import ImageFile
 import threading
+import argparse
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
@@ -238,9 +239,21 @@ class LvqTester:
             self.lock.release()
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Run RSLVQ learning accuracy tests on the Xception bottleneck feature dataset.')
+    parser.add_argument('--threads', '-t', type=int, default=2, help='Number of threads to use.')
+    parser.add_argument('--code-path', '-f', type=str, default='CodeData', help='Path to the learning dataset.')
+    parser.add_argument('--big-features', action='store_true',
+                        help='Whether to mean the input to big features or small ones.')
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    tester = LvqTester()
+    args = parse_args()
+    tester = LvqTester(big_features=args.big_features, path=args.code_path)
     tests = tester.createTestScenarios()
-    print('Running %d tests.' % len(tests))
-    tester.runTestsParallel(tests)
+    print('Running %d tests with%s big feature space and %d threads.'
+          % (len(tests), "out" if not args.big_features else "", args.threads))
+    tester.runTestsParallel(tests, threads=args.threads)
 
