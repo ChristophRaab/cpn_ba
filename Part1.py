@@ -1,15 +1,19 @@
-from RSLVQ import RslvqLayer
+#from RSLVQ import RslvqLayer
+from sklearn_lvq import RslvqModel
 from keras.applications.xception import Xception, preprocess_input
 from keras.preprocessing import image
 from keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D
 from keras.layers import Dropout, Flatten, Dense
 from keras.models import Sequential
+import keras.backend as kbackend
 from keras.callbacks import ModelCheckpoint
 from sklearn.datasets import load_files
 from keras.utils import np_utils
 import numpy as np
+from RSLVQ.rslvq import RSLVQ as nRSLVQ
 from glob import glob
 from tqdm import tqdm
+import pickle
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -40,6 +44,17 @@ def load_dataset(path):
     return dog_files, dog_targets
 
 
+def mapClassToIndex(arr):
+    for i in range(len(arr)):
+        if arr[i] > 0.99:
+            return i
+    return 0
+
+
+def mapClassArrayToIndexArray(arr):
+    return list(map(lambda x: mapClassToIndex(x), arr))
+
+
 if __name__ == "__main__":
     # define function to load train, test, and validation datasets
     # load train, test, and validation datasets
@@ -51,18 +66,19 @@ if __name__ == "__main__":
     dog_names = [item[20:-1] for item in sorted(glob("CodeData/dogImages/train/*/"))]
 
     # load the network
-    #nn = extract_xception()
     #Xception_model = Xception(weights='imagenet')
     # pre-process the data for Keras
-    train_tensors = paths_to_tensor(train_files).astype('float32') / 255
-    valid_tensors = paths_to_tensor(valid_files).astype('float32') / 255
-    test_tensors = paths_to_tensor(test_files).astype('float32') / 255
+    # train_tensors = paths_to_tensor(train_files).astype('float32') / 255
+    # valid_tensors = paths_to_tensor(valid_files).astype('float32') / 255
+    # test_tensors = paths_to_tensor(test_files).astype('float32') / 255
 
     # get the bottleneck features
     bottleneck_features = np.load('CodeData/DogXceptionData.npz')
     train_Xcep = bottleneck_features['train']
     valid_Xcep = bottleneck_features['valid']
     test_Xcep = bottleneck_features['test']
+
+    shape = train_Xcep.shape[1:]
 
     model = Sequential()
     model.add(GlobalAveragePooling2D(input_shape=train_Xcep.shape[1:]))
@@ -75,9 +91,34 @@ if __name__ == "__main__":
     checkpointer = ModelCheckpoint(filepath='weights.try1.hdf5',
                                    verbose=1, save_best_only=True)
 
-    model.fit(train_Xcep, train_targets,
-              validation_data=(valid_Xcep, valid_targets),
-              epochs=20, batch_size=20, callbacks=[checkpointer], verbose=1)
+    # model.fit(train_Xcep, train_targets,
+    #           validation_data=(valid_Xcep, valid_targets),
+    #           epochs=20, batch_size=20, callbacks=[checkpointer], verbose=1)
+
+    train_meaned = np.mean(train_Xcep, axis=(2, 3))
+    train_targets_indexed = np.array(mapClassArrayToIndexArray(train_targets))  # '.astype('float64') / 133
+    valid_meaned = np.mean(valid_Xcep, axis=(2, 3))
+    valid_targets_indexed = np.array(mapClassArrayToIndexArray(valid_targets))
+
+
+    print("Starting RSLVQ trainig")
+
+    #rslvq = RslvqModel(max_iter=100, gtol=1e-4, sigma=0.2)
+    rslvq = nRSLVQ(prototypes_per_class=10, sigma=0.5, batch_size=200, n_epochs=20)
+    fitdata = rslvq.fit(train_meaned, train_targets_indexed)
+
+    print("Starting RSLVQ prediction")
+    predict = rslvq.predict(valid_meaned)
+
+    pickle.dump(predict, open("/srv/ba-dumps/predict-%s-sigma%f-lvq.p" % ("raab", rslvq.sigma), "wb"))
+    # print(predict)
+
+    diff = list(map(lambda x: 1 if x == 0 else 0, predict - valid_targets_indexed))
+    total = len(diff)
+    correct = sum(diff)
+    wrong = total - correct
+
+    print('Correctly classified %d out of %d samples (%d wrong) => Accuracy of %f%%\n' % (correct, total, wrong, (correct/total) * 100))
 
     # print statistics about the dataset
     print('There are %d total dog categories.' % len(dog_names))
