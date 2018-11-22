@@ -98,7 +98,13 @@ class LvqParams:
 
 
 class LvqTester:
-    def __init__(self, path="CodeData"):
+    def __init__(self, path="CodeData", big_features=False):
+        """
+        Initializes the class (and directly starts loading data)
+        :param path: The path to the data set.
+        :param big_features: Whether to use big feature inputs (mean on axis 1,2 instead of 2,3)
+        """
+        self.mean_axis = (1, 2) if big_features else (2, 3)
         self.bottleneck_features = np.load(path + '/DogXceptionData.npz')
 
         self.train_set = self.meanBottleneckFeatures(self.bottleneck_features['train'])
@@ -122,7 +128,7 @@ class LvqTester:
         Flattens the multidimensional bottleneck featues
         :return:
         """
-        return np.mean(features, axis=(2, 3))
+        return np.mean(features, axis=self.mean_axis)
 
     def mapTargetsToIndexed(self, targets):
         """
@@ -185,13 +191,13 @@ class LvqTester:
 
     def runTestsParallel(self, tests, threads=3):
         """
-        Starts parallel test threads. For now, this method should only be called once!
+        Starts parallel test threads. For now, this method is _not_ threadsafe!
         :param tests: The tests to run.
         :param threads: The amount of threads to use
         :return:
         """
         if len(self.tests) != 0:
-            raise PermissionError("This method may only be called once (for now)!")
+            raise PermissionError("This method is still running in another thread!")
 
         self.tests = tests
         self.results = []
