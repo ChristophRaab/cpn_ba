@@ -114,6 +114,7 @@ class LvqTester:
         self.test_targets_indexed = self.mapTargetsToIndexed(self.test_targets)
 
         self.tests = []
+        self.results = []
         self.lock = threading.Lock()
 
     def meanBottleneckFeatures(self, features):
@@ -193,8 +194,23 @@ class LvqTester:
             raise PermissionError("This method may only be called once (for now)!")
 
         self.tests = tests
+        self.results = []
+        thls = []  # actually threads, but that name was already taken
+
         for n in range(threads):
-            threading.Thread(target=self._threadEntry, args=(n,)).start()
+            th = threading.Thread(target=self._threadEntry, args=(n,))
+            th.start()
+            thls.append(th)
+
+        for n in range(threads):
+            thls[n].join()
+
+        self.results.sort(key=lambda x: x[4])  # sort by accuracy
+        print("")
+        print(" Results ")
+        print("---------")
+        for i in range(len(self.results)):
+            print('%sCorrectly classified %d out of %d samples (%d wrong) => Accuracy of %f%%' % self.results[i])
 
     def _threadEntry(self, num):
         """
@@ -209,7 +225,11 @@ class LvqTester:
             self.lock.release()
 
             print("Thread %d -- starting [%s]" % (num, str(lvq)))
-            self.testLvq(lvq.createRslvq(), str(lvq))
+            dt = self.testLvq(lvq.createRslvq(), str(lvq))
+
+            self.lock.acquire()
+            self.results.append(dt)
+            self.lock.release()
 
 
 if __name__ == "__main__":
