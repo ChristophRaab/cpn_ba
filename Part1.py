@@ -6,6 +6,7 @@ from keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D
 from keras.layers import Dropout, Flatten, Dense
 from keras.models import Sequential
 import keras.backend as kbackend
+import sklearn.decomposition as deco
 from keras.callbacks import ModelCheckpoint
 from queue import Empty as QEmpty
 from sklearn.datasets import load_files
@@ -101,13 +102,22 @@ class LvqParams:
 
 
 class LvqTester:
-    def __init__(self, path="CodeData", big_features=False):
+    def __init__(self, path="CodeData", big_features=True, filter='pca', pca_dims=137):
         """
         Initializes the class (and directly starts loading data)
         :param path: The path to the data set.
         :param big_features: Whether to use big feature inputs (mean on axis 1,2 instead of 2,3)
         """
         self.mean_axis = (1, 2) if big_features else (2, 3)
+        self.pca_dims = pca_dims
+        self.filters = {
+            "pca": self.pcaTrainingData,
+            "min": self.minTrainingData,
+            "max": self.maxTrainingData,
+            "mean": self.meanTrainingData,
+            "flatten": self.flattenTrainingDaten
+        }
+        self.filter = self.filters[filter]
         self.bottleneck_features = np.load(path + '/DogXceptionData.npz')
 
         self.train_set = self.refineTrainingData(self.bottleneck_features['train'])
@@ -125,14 +135,57 @@ class LvqTester:
         self.tests = Queue(1)
         self.results = Queue(1)
         self.lock = threading.Lock()
+        print("Prepared Tester: filter=%s big_features=%s pca_dims=%d" % (filter, str(big_features), pca_dims))
 
     def refineTrainingData(self, features):
         """
-        Flattens the multidimensional bottleneck featues
+        Refines the multidimensional bottleneck features for use with RSLVQ.
+        :return: The refined data
+        """
+        return self.filter(features)
+
+    def meanTrainingData(self, data):
+        """
+        Means the multidimensional bottleneck features.
+        :return: The refined data
+        """
+        return np.mean(data, axis=self.mean_axis)
+
+    def maxTrainingData(self, data):
+        """
+        Uses max to reduce the dimensions of the bottleneck features.
+        :return: The refined data
+        """
+        return np.max(data, axis=self.mean_axis)
+
+    def minTrainingData(self, data):
+        """
+        Uses min to reduce the dimensions of the bottleneck features.
+        :return: The refined data
+        """
+        return np.min(data, axis=self.mean_axis)
+
+    def pcaTrainingData(self, features):
+        """
+        Uses a PCA to reduce the data dimensions.
+        :param features: The input data.
+        :param out_dims:
         :return:
         """
-        return np.max(features, axis=self.mean_axis)
-        # return np.mean(features, axis=self.mean_axis)
+        # flatten all the input data for each sample
+        flattened = features.reshape(features.shape[0], -1)
+        # norm the input features
+        flattened = (flattened - np.mean(flattened, 0)) / np.std(flattened, 0)
+        pca = deco.PCA(self.pca_dims)
+        pca.fit(flattened)
+        return pca.transform(flattened)
+
+    def flattenTrainingDaten(self, features):
+        """
+        Flattens all sample data to a single two-dimensional array without any processing.
+        :param features: The input features
+        """
+        return features.reshape(features.shape[0], -1)
 
     def mapTargetsToIndexed(self, targets):
         """
@@ -271,17 +324,20 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='Run RSLVQ learning accuracy tests on the Xception bottleneck feature dataset.')
     parser.add_argument('--threads', '-t', type=int, default=2, help='Number of threads to use.')
-    parser.add_argument('--code-path', '-f', type=str, default='CodeData', help='Path to the learning dataset.')
+    parser.add_argument('--code-path', '-p', type=str, default='CodeData', help='Path to the learning dataset.')
+    parser.add_argument('--filter', '-f', type=str, choices=['min', 'max', 'mean', 'pca', 'flatten'], default='mean',
+                        help='How to prepare the bottleneck features before using them with the LVQ algorithm.')
     parser.add_argument('--big-features', action='store_true',
                         help='Whether to mean the input to big features or small ones.')
     parser.add_argument('--use-mp', '-m', action='store_true',
                         help='Whether to use the multiprocessing library instead of threading.')
+    parser.add_argument('--pca-dims', type=int, default=100, help='Number of dimensions in the PCA output.')
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    tester = LvqTester(big_features=args.big_features, path=args.code_path)
+    tester = LvqTester(big_features=args.big_features, path=args.code_path, filter=args.filter, pca_dims=args.pca_dims)
     # tests = tester.createTestScenarios()
     tests = [ LvqParams(sigma=.2, prototypes_per_class=8, batch_size=256, epochs=4) ]
     print('Running %d tests with%s big feature space and %d %s.'
