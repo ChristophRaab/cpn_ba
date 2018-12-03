@@ -110,9 +110,9 @@ class LvqTester:
         self.mean_axis = (1, 2) if big_features else (2, 3)
         self.bottleneck_features = np.load(path + '/DogXceptionData.npz')
 
-        self.train_set = self.meanBottleneckFeatures(self.bottleneck_features['train'])
-        self.valid_set = self.meanBottleneckFeatures(self.bottleneck_features['valid'])
-        self.test_set = self.meanBottleneckFeatures(self.bottleneck_features['test'])
+        self.train_set = self.refineTrainingData(self.bottleneck_features['train'])
+        self.valid_set = self.refineTrainingData(self.bottleneck_features['valid'])
+        self.test_set = self.refineTrainingData(self.bottleneck_features['test'])
 
         self.train_files, self.train_targets = load_dataset(path + '/dogImages/train')
         self.valid_files, self.valid_targets = load_dataset(path + '/dogImages/valid')
@@ -126,7 +126,7 @@ class LvqTester:
         self.results = Queue(1)
         self.lock = threading.Lock()
 
-    def meanBottleneckFeatures(self, features):
+    def refineTrainingData(self, features):
         """
         Flattens the multidimensional bottleneck featues
         :return:
