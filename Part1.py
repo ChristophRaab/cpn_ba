@@ -165,7 +165,7 @@ class LvqTester:
         """
         return np.min(data, axis=self.mean_axis)
 
-    def pcaTrainingData(self, features):
+    def pcaTrainingData(self, flattened):
         """
         Uses a PCA to reduce the data dimensions.
         :param features: The input data.
@@ -173,11 +173,11 @@ class LvqTester:
         :return:
         """
         # flatten all the input data for each sample
-        flattened = features.reshape(features.shape[0], -1)
+        dim1size = flattened.shape[0]
+        flattened = flattened.reshape(dim1size, -1)
         # norm the input features
-        flattened = (flattened - np.mean(flattened, 0)) / np.std(flattened, 0)
         pca = deco.PCA(self.pca_dims)
-        pca.fit(flattened)
+        pca.fit(flattened[0:200])
         return pca.transform(flattened)
 
     def flattenTrainingDaten(self, features):
