@@ -131,7 +131,8 @@ class LvqTester:
         Flattens the multidimensional bottleneck featues
         :return:
         """
-        return np.mean(features, axis=self.mean_axis)
+        return np.max(features, axis=self.mean_axis)
+        # return np.mean(features, axis=self.mean_axis)
 
     def mapTargetsToIndexed(self, targets):
         """
@@ -281,7 +282,8 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     tester = LvqTester(big_features=args.big_features, path=args.code_path)
-    tests = tester.createTestScenarios()
+    # tests = tester.createTestScenarios()
+    tests = [ LvqParams(sigma=.2, prototypes_per_class=8, batch_size=256, epochs=4) ]
     print('Running %d tests with%s big feature space and %d %s.'
           % (len(tests), "out" if not args.big_features else "", args.threads, "processes" if args.use_mp else "threads"))
     tester.runTestsParallel(tests, threads=args.threads, use_multiprocessing=args.use_mp)
