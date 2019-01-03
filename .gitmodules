@@ -1,3 +1,6 @@
 [submodule "RSLVQ"]
 	path = RSLVQ
 	url = git@github.com:ChristophRaab/RSLVQ.git
+[submodule "nnet"]
+	path = nnet
+	url = git@github.com:andersbll/nnet.git
