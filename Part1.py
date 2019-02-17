@@ -1,3 +1,5 @@
+import time
+
 from sklearn_lvq import RslvqModel
 from keras.applications.xception import Xception, preprocess_input
 from keras.preprocessing import image
@@ -94,12 +96,16 @@ class LvqParams:
         :param train_targets: The correct classification for the training samples.
         :param train_set: The training samples.
         :param description: A string describing the LVQ implementation.
-        :return: A tuple of (description, correct count, total count, wrong count, accurary percentage)
+        :return:
+        A tuple of (description, correct count, total count, wrong count, accurary percentage, prediction time in ms)
         """
         lvq = self.createRslvq()
         fitdata = lvq.fit(train_set, train_targets)
 
+        starttime = time.time()
         predict = lvq.predict(test_set)
+        endtime = time.time()
+        prediction_time_ms = (endtime - starttime) * 1000.0
 
         diff = list(map(lambda x: 1 if x == 0 else 0, predict - test_targets))
         total = len(diff)
@@ -109,7 +115,7 @@ class LvqParams:
         if description != "":
             description = "[%s] " % description
 
-        results = (description, correct, total, wrong, (correct / total) * 100)
+        results = (description, correct, total, wrong, (correct / total) * 100, prediction_time_ms)
 
         return results
 
@@ -237,7 +243,7 @@ class LvqTester:
         # this part possibly shuffles, but always merges train and valid.
         if shuffle:
             combined_set = np.concatenate((self.train_set, self.valid_set, self.test_set), axis=0)
-            combined_targets = np.concatenate((self.train_files, self.valid_files, self.test_files), axis=0)
+            combined_targets = np.concatenate((self.train_targets_indexed, self.valid_targets_indexed, self.test_targets_indexed), axis=0)
 
             combined_set_shuffled, combined_targets_shuffled = combined_shuffle(combined_set, combined_targets)
             self.train_set = combined_set_shuffled[self.test_set.shape[0]:]
@@ -337,7 +343,7 @@ class LvqTester:
         print(" Results ")
         print("---------")
         for i in range(len(res)):
-            print('%sCorrectly classified %d out of %d samples (%d wrong) => Accuracy of %f%%' % res[i])
+            print('%sCorrectly classified %d out of %d samples (%d wrong) => Accuracy of %f%% (in %f ms)' % res[i])
 
     def _threadEntry(self, num):
         """
