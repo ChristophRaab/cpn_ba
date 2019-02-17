@@ -50,13 +50,12 @@ def load_dataset(path):
 
 
 class LvqParams:
-    def __init__(self, sigma, prototypes_per_class, epochs, batch_size, mean_dimensions=None):
+    def __init__(self, sigma, prototypes_per_class, epochs, batch_size):
         self.sigma = sigma
         self.prototypes_per_class = prototypes_per_class
         self.epochs = epochs
         self.batch_size = batch_size
         self.cost = self.computeCost()
-        self.mean_dimensions = mean_dimensions
 
     def computeCost(self):
         """
@@ -85,7 +84,6 @@ class LvqParams:
             sigma=self.sigma,
             batch_size=self.batch_size,
             epochs=self.epochs,
-            mean_dimensions=self.mean_dimensions
         )
 
     def test_lvq(self, train_set, train_targets, test_set, test_targets, description=""):
@@ -364,14 +362,9 @@ class LvqTester:
 
 
 class LvqClassifierLayer:
-    def __init__(self, filter='flatten', mean_dimensions=None, sigma=0.2, prototypes_per_class=8, batch_size=256, epochs=4):
+    def __init__(self, sigma=0.2, prototypes_per_class=8, batch_size=256, epochs=4):
         """
         Initializes the RSLVQ training layer.
-        :param filter:
-        The function to use for reducing the data dimensions to two. Can be 'flatten' (default), 'min', 'max' or 'mean'.
-        :param mean_dimensions:
-        The dimensions to reduce. For example, if one has a 4-dimensional array and the given value is (1,2) the new
-        array will have the shape [old.shape[0],old.shape[3]]. Ignored for filter='flatten'. Defaults to old.shape[2:].
         :param sigma: The sigma to use for the RSLVQ classifier.
         :param prototypes_per_class: The number of prototypes used for each class in the RSLVQ classifier.
         :param batch_size: The batch size used in the RSLVQ classifier.
