@@ -1,4 +1,3 @@
-#from RSLVQ import RslvqLayer
 from sklearn_lvq import RslvqModel
 from keras.applications.xception import Xception, preprocess_input
 from keras.preprocessing import image
@@ -334,17 +333,10 @@ class LvqTester:
         """
         while True:
             lvq = None
-            if isqueue:
-                try:
-                    lvq = self.tests.get(False)
-                except QEmpty:
-                    return  # ran all tests
-            else:
-                self.lock.acquire()
-                if len(self.tests) == 0:
-                    return  # ran all tests
-                lvq = self.tests.pop(0)
-                self.lock.release()
+            try:
+                lvq = self.tests.get(True)
+            except QEmpty:
+                return  # ran all tests
 
             print("Thread %d -- starting [%s]" % (num, str(lvq)))
             dt = lvq.test_lvq(
@@ -373,9 +365,6 @@ class LvqClassifierLayer:
         :param batch_size: The batch size used in the RSLVQ classifier.
         :param epochs: The number of training epochs.
         """
-        if filter not in ['min', 'max', 'mean', 'flatten']:
-            raise ValueError("Unknown filter function '%s'!" % filter)
-        self.filter = DimensionReduction(filter, mean_dimensions)
         self.sigma = sigma
         self.prototypes_per_class = prototypes_per_class
         self.batch_size = batch_size
@@ -405,7 +394,9 @@ class LvqClassifierLayer:
         if len(data.shape) < 2:
             raise ValueError('The data array has too few dimensions!')
 
-        data = self.filter.refine(data)
+        if len(data.shape) > 2:
+            data = data.reshape(data.shape[0], -1)
+
         self.lvq.fit(data, classification)
 
     def predict(self, data):
@@ -417,7 +408,9 @@ class LvqClassifierLayer:
         if len(data.shape) < 2:
             raise ValueError('The data array has too few dimensions!')
 
-        data = self.filter.refine(data)
+        if len(data.shape) > 2:
+            data = data.reshape(data.shape[0], -1)
+
         return self.lvq.predict(data)
 
 
