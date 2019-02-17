@@ -9,6 +9,7 @@ import sklearn.decomposition as deco
 from keras.callbacks import ModelCheckpoint
 from queue import Empty as QEmpty
 from sklearn.datasets import load_files
+from sklearn.utils import shuffle as combined_shuffle
 from keras.utils import np_utils
 import numpy as np
 from RSLVQ.rslvq import RSLVQ as nRSLVQ
@@ -212,7 +213,7 @@ class DimensionReduction:
 
 
 class LvqTester:
-    def __init__(self, path="CodeData", big_features=True, filter='flatten', pca_dims=137):
+    def __init__(self, path="CodeData", big_features=True, filter='flatten', pca_dims=137, shuffle=False):
         """
         Initializes the class (and directly starts loading data)
         :param path: The path to the data set.
@@ -234,6 +235,20 @@ class LvqTester:
         self.valid_targets_indexed = self.mapTargetsToIndexed(self.valid_targets)
         self.train_targets_indexed = self.mapTargetsToIndexed(self.train_targets)
         self.test_targets_indexed = self.mapTargetsToIndexed(self.test_targets)
+
+        # this part possibly shuffles, but always merges train and valid.
+        if shuffle:
+            combined_set = np.concatenate((self.train_set, self.valid_set, self.test_set), axis=0)
+            combined_targets = np.concatenate((self.train_files, self.valid_files, self.test_files), axis=0)
+
+            combined_set_shuffled, combined_targets_shuffled = combined_shuffle(combined_set, combined_targets)
+            self.train_set = combined_set_shuffled[self.test_set.shape[0]:]
+            self.train_targets_indexed = combined_targets_shuffled[self.test_set.shape[0]:]
+            self.test_set = combined_set_shuffled[:self.test_set.shape[0]:]
+            self.test_targets_indexed = combined_targets_shuffled[:self.test_set.shape[0]]
+        else:
+            self.train_set = np.concatenate((self.train_set, self.valid_set), axis=0)
+            self.train_targets = np.concatenate((self.train_targets, self.valid_targets), axis=0)
 
         self.tests = Queue(1)
         self.results = Queue(1)
@@ -422,16 +437,20 @@ def parse_args():
                         help='Whether to mean the input to big features or small ones.')
     parser.add_argument('--use-mp', '-m', action='store_true',
                         help='Whether to use the multiprocessing library instead of threading.')
+    parser.add_argument('--shuffle', '-s', action='store_true', help='Whether to shuffle the input data set.')
     parser.add_argument('--pca-dims', type=int, default=100, help='Number of dimensions in the PCA output.')
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    tester = LvqTester(big_features=args.big_features, path=args.code_path, filter=args.filter, pca_dims=args.pca_dims)
-    # tests = tester.createTestScenarios(mean_dims=tester.mean_axis)
-    tests = [ LvqParams(sigma=.2, prototypes_per_class=8, batch_size=256, epochs=4, mean_dimensions=tester.mean_axis) ] * 2
-    print('Running %d tests with%s big feature space and %d %s.'
-          % (len(tests), "out" if not args.big_features else "", args.threads, "processes" if args.use_mp else "threads"))
+    tester = LvqTester(big_features=args.big_features, path=args.code_path, filter=args.filter, pca_dims=args.pca_dims, shuffle=args.shuffle)
+    tests = tester.createTestScenarios(mean_dims=tester.mean_axis)
+    print('Running %d tests with%s big feature space%s and %d %s.'
+          % (len(tests),
+             "out" if not args.big_features else "",
+             " (shuffled)" if args.shuffle else "",
+             args.threads,
+             "processes" if args.use_mp else "threads"))
     tester.runTestsParallel(tests, threads=args.threads, use_multiprocessing=args.use_mp)
 
