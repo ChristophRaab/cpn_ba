@@ -435,10 +435,26 @@ def parse_args():
     return parser.parse_args()
 
 
+def best_tests():
+    # the parameters which returned the best results in long-running tests
+    return [
+        LvqParams(sigma=.2, prototypes_per_class=8, batch_size=256, epochs=4),
+        LvqParams(sigma=6, prototypes_per_class=12, batch_size=128, epochs=4),
+        LvqParams(sigma=6, prototypes_per_class=12, batch_size=16, epochs=12),
+        LvqParams(sigma=1, prototypes_per_class=3, batch_size=8, epochs=4),
+        LvqParams(sigma=5, prototypes_per_class=10, batch_size=32, epochs=8),
+        LvqParams(sigma=.2, prototypes_per_class=10, batch_size=32, epochs=8),
+        LvqParams(sigma=6, prototypes_per_class=10, batch_size=128, epochs=2),
+        LvqParams(sigma=3, prototypes_per_class=10, batch_size=8, epochs=4),
+        LvqParams(sigma=1, prototypes_per_class=12, batch_size=128, epochs=12),
+        LvqParams(sigma=.2, prototypes_per_class=8, batch_size=256, epochs=1)
+    ]
+
+
 if __name__ == "__main__":
     args = parse_args()
     tester = LvqTester(big_features=args.big_features, path=args.code_path, filter=args.filter, pca_dims=args.pca_dims, shuffle=args.shuffle)
-    tests = tester.createTestScenarios(mean_dims=tester.mean_axis)
+    tests = best_tests()
     print('Running %d tests with%s big feature space%s and %d %s.'
           % (len(tests),
              "out" if not args.big_features else "",
