@@ -303,9 +303,9 @@ class LvqTester:
         for n in range(threads):
             th = None
             if use_multiprocessing:
-                th = MProcess(target=self._threadEntry, args=(n, True,))
+                th = MProcess(target=self._threadEntry, args=(n,))
             else:
-                th = threading.Thread(target=self._threadEntry, args=(n, True,))
+                th = threading.Thread(target=self._threadEntry, args=(n,))
             th.start()
             thls.append(th)
 
@@ -326,7 +326,7 @@ class LvqTester:
         for i in range(len(res)):
             print('%sCorrectly classified %d out of %d samples (%d wrong) => Accuracy of %f%%' % res[i])
 
-    def _threadEntry(self, num, isqueue):
+    def _threadEntry(self, num):
         """
         This method is the entry point for a test thread.
         :param num: The thread index.
@@ -344,10 +344,7 @@ class LvqTester:
             print('%sCorrectly classified %d out of %d samples (%d wrong) => Accuracy of %f%%' % dt)
 
             self.lock.acquire()
-            if isqueue:
-                self.results.put(dt, False)
-            else:
-                self.results.append(dt)
+            self.results.put(dt, False)
             self.lock.release()
 
 
