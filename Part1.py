@@ -360,7 +360,7 @@ class LvqTester:
             print("Thread %d -- starting [%s]" % (num, str(lvq)))
             dt = lvq.test_lvq(
                 self.train_set, self.train_targets_indexed, self.test_set, self.test_targets_indexed, str(lvq))
-            print('%sCorrectly classified %d out of %d samples (%d wrong) => Accuracy of %f%%' % dt)
+            print('%sCorrectly classified %d out of %d samples (%d wrong) => Accuracy of %f%% (%f ms)' % dt)
 
             self.lock.acquire()
             self.results.put(dt, False)
