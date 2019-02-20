@@ -11,6 +11,10 @@ from common import load_dataset
 
 
 class LvqParams:
+    """
+    This class represents the parameters for an RSLVQ instance. It can also run a test against the current instance.
+    """
+
     def __init__(self, sigma, prototypes_per_class, epochs, batch_size):
         self.sigma = sigma
         self.prototypes_per_class = prototypes_per_class
@@ -20,7 +24,7 @@ class LvqParams:
 
     def computeCost(self):
         """
-        Computes a loose approximation of the runtime cost
+        Computes a loose approximation of the runtime cost of fitting based on the parameters.
         :return:
         """
         # this assumes that a higher batch size can process more data at once and is therefore faster
@@ -28,7 +32,7 @@ class LvqParams:
 
     def __str__(self):
         """
-        Returns a string represenation of the class
+        Returns a string representation of the class.
         :return:
         """
         return "LVQ with sigma=%f and %d prototypes per class; using batch size %d on %d epochs" % (
@@ -37,7 +41,7 @@ class LvqParams:
 
     def createRslvq(self):
         """
-        Creates an instance of the RSLVQ implementation using the given parameters
+        Creates an instance of the RSLVQ implementation using the given parameters.
         :return:
         """
         return LvqClassifierLayer(
@@ -79,12 +83,18 @@ class LvqParams:
         return results
 
     def __lt__(self, other):
+        """
+        Compares the approximated cost of this instance to another instance.
+        :param other:
+        :return:
+        """
         return self.cost < other.cost
 
 
 class DimensionReduction:
     """
     This class provides dimensional reduction for input data.
+    It can refine data via different filters while reducing.
     """
 
     def __init__(self, filter='flatten', mean_dimensions=None, pca_dims=32):
@@ -94,7 +104,8 @@ class DimensionReduction:
         The function to use for reducing the data dimensions to two. Can be 'min', 'max', 'mean', 'pca' or 'flatten'.
         :param mean_dimensions:
         The dimensions to reduce. For example, if one has a 4-dimensional array and the given value is (1,2) the new
-        array will have the shape [old.shape[0],old.shape[3]]. Ignored for filter='flatten'. Defaults to old.shape[2:].
+        array will have the shape [old.shape[0],old.shape[3]]. Ignored for flatten and pca filters. Defaults to
+        old.shape[2:].
         :param pca_dims: The dimensions to use when using a pca.
         """
         self.mean_dimensions = mean_dimensions
@@ -113,7 +124,7 @@ class DimensionReduction:
 
     def refine(self, data):
         """
-        Reduces the multi-dimensional input data to a two-dimensional array with the given filter.
+        Reduces the multi-dimensional input data to a two-dimensional array with the filter set by the parameters.
         :return: The refined data
         """
         shapelen = len(data.shape)
@@ -167,7 +178,7 @@ class DimensionReduction:
         pca.fit(flattened[0:200])
         return pca.transform(flattened)
 
-    def _flatten_data(self, features, mean_axis=None):
+    def _flatten_data(self, features):
         """
         Flattens all sample data to a single two-dimensional array without any processing.
         :param features: The input features
@@ -176,11 +187,30 @@ class DimensionReduction:
 
 
 class LvqTester:
+    """
+    This class loads a test data set and runs it against given RSLVQ hyperparameters. It can do so in multiple processes
+    in order to allow parallel testing. It is also possible to shuffle the input data.
+    """
+
     def __init__(self, path="CodeData", big_features=True, filter='flatten', pca_dims=137, shuffle=False):
         """
         Initializes the class (and directly starts loading data)
-        :param path: The path to the data set.
+        :param path: The path to the data set. Should log like this:
+        - path
+        |- dogImages
+        ||- test
+        |||- dog01
+        ||||- 001.jpg
+        ||||- ...
+        ||- train
+        ||| ...
+        ||- valid
+        ||| ...
         :param big_features: Whether to use big feature inputs (mean on axis 1,2 instead of 2,3)
+        :param filter:
+        The function to use for reducing the data dimensions to two. Can be 'min', 'max', 'mean', 'pca' or 'flatten'.
+        :param pca_dims: The dimensions to reduce to when using a PCA filter.
+        :param shuffle: Whether to shuffle the input data.
         """
         self.mean_axis = (1, 2) if big_features else (2, 3)
         self.filter = DimensionReduction(filter, self.mean_axis, pca_dims)
@@ -213,21 +243,6 @@ class LvqTester:
         self.results = Queue(1)
         self.lock = threading.Lock()
         print("Prepared Tester: filter=%s big_features=%s pca_dims=%d" % (filter, str(big_features), pca_dims))
-
-    def mapTargetsToIndexed(self, targets):
-        """
-        Maps neural network targets (1 at the index n) to numerical targets (n).
-        :param targets: The targets to map
-        :return: A numpy array with mapped targets
-        """
-        def mapClassToIndex(arr):
-            for i in range(len(arr)):
-                if arr[i] > 0.99:
-                    return i
-            raise ValueError('No class found in array!')
-
-        # return np.array(list(map(lambda x: mapClassToIndex(x), targets)))
-        return np.array([mapClassToIndex(sample) for sample in targets])
 
     def frange(self, x, y, jump):
         """
@@ -323,6 +338,10 @@ class LvqTester:
 
 
 class LvqClassifierLayer:
+    """
+    This is a light wrapper around the RSLVQ implementation.
+    """
+
     def __init__(self, sigma=0.2, prototypes_per_class=8, batch_size=256, epochs=4):
         """
         Initializes the RSLVQ training layer.
@@ -381,6 +400,10 @@ class LvqClassifierLayer:
 
 
 def parse_args():
+    """
+    This helper function parses all parameters given.
+    :return: An object containing the default and parsed parameter values.
+    """
     parser = argparse.ArgumentParser(
         description='Run RSLVQ learning accuracy tests on the Xception bottleneck feature dataset.')
     parser.add_argument('--threads', '-t', type=int, default=2, help='Number of threads to use.')
@@ -397,7 +420,10 @@ def parse_args():
 
 
 def best_tests():
-    # the parameters which returned the best results in long-running tests
+    """
+    This returns the best ten hyperparameter combinations found via tests as instances of LvqParams.
+    :return:
+    """
     return [
         LvqParams(sigma=.2, prototypes_per_class=8, batch_size=256, epochs=4),
         LvqParams(sigma=6, prototypes_per_class=12, batch_size=128, epochs=4),
