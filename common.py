@@ -26,8 +26,12 @@ def extract_xception(tensor):
     return Xception(weights='imagenet', include_top=False).predict(preprocess_input(tensor))
 
 
-def load_dataset(path):
+def load_dataset(path, onehot=True):
     data = load_files(path)
     dog_files = np.array(data['filenames'])
-    dog_targets = np_utils.to_categorical(np.array(data['target']), 133)
+
+    dog_targets = np.array(data['target'])
+    if onehot:
+        dog_targets = np_utils.to_categorical(dog_targets, 133)
+
     return dog_files, dog_targets

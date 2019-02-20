@@ -191,13 +191,9 @@ class LvqTester:
         self.valid_set = self.filter.refine(self.bottleneck_features['valid'])
         self.test_set = self.filter.refine(self.bottleneck_features['test'])
 
-        self.train_files, self.train_targets = load_dataset(path + '/dogImages/train')
-        self.valid_files, self.valid_targets = load_dataset(path + '/dogImages/valid')
-        self.test_files, self.test_targets = load_dataset(path + '/dogImages/test')
-
-        self.valid_targets_indexed = self.mapTargetsToIndexed(self.valid_targets)
-        self.train_targets_indexed = self.mapTargetsToIndexed(self.train_targets)
-        self.test_targets_indexed = self.mapTargetsToIndexed(self.test_targets)
+        self.train_files, self.train_targets_indexed = load_dataset(path + '/dogImages/train', onehot=False)
+        self.valid_files, self.valid_targets_indexed = load_dataset(path + '/dogImages/valid', onehot=False)
+        self.test_files, self.test_targets_indexed = load_dataset(path + '/dogImages/test', onehot=False)
 
         # this part possibly shuffles, but always merges train and valid.
         if shuffle:
