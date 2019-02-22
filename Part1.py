@@ -237,7 +237,7 @@ class LvqTester:
             self.test_targets_indexed = combined_targets_shuffled[:self.test_set.shape[0]]
         else:
             self.train_set = np.concatenate((self.train_set, self.valid_set), axis=0)
-            self.train_targets = np.concatenate((self.train_targets, self.valid_targets), axis=0)
+            self.train_targets_indexed = np.concatenate((self.train_targets_indexed, self.valid_targets_indexed), axis=0)
 
         self.tests = Queue(1)
         self.results = Queue(1)
