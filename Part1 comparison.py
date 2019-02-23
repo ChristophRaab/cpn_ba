@@ -5,6 +5,7 @@ from keras.models import Sequential
 import numpy as np
 from glob import glob
 from common import load_dataset, paths_to_tensor
+from sklearn.utils import shuffle as unison_shuffle
 
 
 if __name__ == "__main__":
@@ -13,6 +14,24 @@ if __name__ == "__main__":
     train_files, train_targets = load_dataset('CodeData/dogImages/train')
     valid_files, valid_targets = load_dataset('CodeData/dogImages/valid')
     test_files, test_targets = load_dataset('CodeData/dogImages/test')
+
+    # shuffle the dataset
+    combined_set = np.concatenate((train_files, valid_files, test_files), axis=0)
+    combined_targets = np.concatenate((train_targets, valid_targets, test_targets), axis=0)
+
+    train_offset = train_files.shape[0]
+    valid_offset = train_offset + valid_files.shape[0]
+
+    combined_set, combined_targets = unison_shuffle(combined_set, combined_targets)
+
+    train_files = combined_set[:train_offset]
+    train_targets = combined_targets[:train_offset]
+
+    valid_files = combined_set[train_offset:valid_offset]
+    valid_targets = combined_targets[train_offset:valid_offset]
+
+    test_files = combined_set[valid_offset:]
+    test_targets = combined_targets[valid_offset:]
 
     # load list of dog names
     dog_names = [item[20:-1] for item in sorted(glob("CodeData/dogImages/train/*/"))]
