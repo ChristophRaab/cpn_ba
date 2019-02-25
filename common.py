@@ -7,27 +7,29 @@ from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
-def path_to_tensor(img_path):
+def path_to_tensor(img_path, data_format=None):
     """
-    This method loads an image and returns it as tensor with the shape (1, 224, 224, 3).
+    This method loads an image and returns it as tensor with the shape (1, 224, 224, 3) or (1, 3, 224, 244).
     :param img_path: The image file.
-    :return: A tensor in the shape (1, 224, 224, 3).
+    :param data_format: Allows to change the data to channels first.
+    :return: A tensor in the shape (1, 224, 224, 3) or (1, 3, 224, 244).
     """
     # loads RGB image as PIL.Image.Image type
     img = image.load_img(img_path, target_size=(224, 224))
     # convert PIL.Image.Image type to 3D tensor with shape (224, 224, 3)
-    x = image.img_to_array(img)
+    x = image.img_to_array(img, data_format=data_format)
     # convert 3D tensor to 4D tensor with shape (1, 224, 224, 3) and return 4D tensor
     return np.expand_dims(x, axis=0)
 
 
-def paths_to_tensor(img_paths):
+def paths_to_tensor(img_paths, data_format=None):
     """
-    This method loads images and returns them as tensor with the shape (#, 224, 224, 3).
+    This method loads images and returns them as tensor with the shape (#, 224, 224, 3) or (#, 3, 224, 224).
     :param img_paths: A list of image paths.
-    :return: A tensor in the shape (#, 224, 224, 3).
+    :param data_format: Allows to change the data to channels first.
+    :return: A tensor in the shape (#, 224, 224, 3) or (#, 3, 244, 244).
     """
-    list_of_tensors = [path_to_tensor(img_path) for img_path in tqdm(img_paths)]
+    list_of_tensors = [path_to_tensor(img_path, data_format=data_format) for img_path in tqdm(img_paths)]
     return np.vstack(list_of_tensors)
 
 
