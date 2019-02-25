@@ -16,36 +16,31 @@ if __name__ == "__main__":
     test_files, test_targets = load_dataset('CodeData/dogImages/test')
 
     # shuffle the dataset
-    combined_set = np.concatenate((train_files, valid_files, test_files), axis=0)
     combined_targets = np.concatenate((train_targets, valid_targets, test_targets), axis=0)
 
     train_offset = train_files.shape[0]
     valid_offset = train_offset + valid_files.shape[0]
 
-    combined_set, combined_targets = unison_shuffle(combined_set, combined_targets)
-
-    train_files = combined_set[:train_offset]
-    train_targets = combined_targets[:train_offset]
-
-    valid_files = combined_set[train_offset:valid_offset]
-    valid_targets = combined_targets[train_offset:valid_offset]
-
-    test_files = combined_set[valid_offset:]
-    test_targets = combined_targets[valid_offset:]
-
     # load list of dog names
     dog_names = [item[20:-1] for item in sorted(glob("CodeData/dogImages/train/*/"))]
-
-    # pre-process the data for Keras
-    train_tensors = paths_to_tensor(train_files).astype('float32') / 255
-    valid_tensors = paths_to_tensor(valid_files).astype('float32') / 255
-    test_tensors = paths_to_tensor(test_files).astype('float32') / 255
 
     # get the bottleneck features
     bottleneck_features = np.load('CodeData/DogXceptionData.npz')
     train_Xcep = bottleneck_features['train']
     valid_Xcep = bottleneck_features['valid']
     test_Xcep = bottleneck_features['test']
+
+    combined_set = np.concatenate((train_Xcep, valid_Xcep, test_Xcep), axis=0)
+    combined_set, combined_targets = unison_shuffle(combined_set, combined_targets)
+
+    train_Xcep = combined_set[:train_offset]
+    train_targets = combined_targets[:train_offset]
+
+    valid_Xcep = combined_set[train_offset:valid_offset]
+    valid_targets = combined_targets[train_offset:valid_offset]
+
+    test_Xcep = combined_set[valid_offset:]
+    test_targets = combined_targets[valid_offset:]
 
     model = Sequential()
     model.add(GlobalAveragePooling2D(input_shape=train_Xcep.shape[1:]))
