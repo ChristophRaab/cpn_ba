@@ -245,6 +245,272 @@ class RslvqLayer(nnet.layers.Layer, nnet.layers.LossMixin):
         return gradient
 
 
+class Network:
+    """
+    This class abstracts a nnet network to SciKit format. It also provides timings.
+    """
+
+    def __init__(self, network, learning_rate, max_iter, batch_size):
+        """
+        Initializes the class.
+        :param network: The network to run on.
+        :param learning_rate: The learning rate.
+        :param max_iter: Maximum number of iterations.
+        :param batch_size: The batch size.
+        """
+        self.network = network
+        self.learning_rate = learning_rate
+        self.max_iter = max_iter
+        self.batch_size = batch_size
+
+    def fit(self, X, y):
+        """
+        Trains the network with the given data.
+        :param X: The input data.
+        :param y: Classes for the input data
+        """
+        t0 = time.time()
+        self.network.fit(X, y, learning_rate=self.learning_rate, max_iter=self.max_iter, batch_size=self.batch_size)
+        t1 = time.time()
+        print('Train duration: %.1fs' % (t1-t0))
+
+    def predict(self, X):
+        """
+        Calculates the output for a given input.
+        :param X: The input.
+        :return: The predictions.
+        """
+        t0 = time.time()
+        pred = self.network.predict(X)
+        t1 = time.time()
+        print('Predict duration: %.1fs' % (t1-t0))
+        return pred
+
+    def evaluate(self, X, y):
+        """
+        Evaluate the accurary of the network with the given inputs X and the expected output y.
+        :param X: The input.
+        :param y: The expected output.
+        :return: The error rate.
+        """
+        t0 = time.time()
+        error = self.network.error(X, y)
+        t1 = time.time()
+        print('Evaluat duration: %.1fs' % (t1-t0))
+        print('Test error rate: %.4f' % error)
+        return error
+
+
+class NetworkWithRslvqLayer(Network):
+    """
+    This class abstracts networks with an RSLVQ layer further by correctly sorting the first input batch.
+    """
+
+    def __init__(self, network, learning_rate=0.05, max_iter=20, batch_size=256):
+        """
+        Initializes the class.
+        :param network: The network to run on.
+        :param learning_rate: The learning rate.
+        param max_iter: Maximum number of iterations.
+        :param batch_size: The batch size.
+        """
+        Network.__init__(self, network, learning_rate, max_iter, batch_size)
+
+    def fit(self, X, y):
+        """
+        Trains the network with the given data.
+        :param X: The input data.
+        :param y: Classes for the input data
+        """
+        # to avoid unecessary errors we sort the data in a way that the first batch contains a sample of every class
+        # this is archived by making the first [#classes] entries equal to the class at the index
+        classes = unique_labels(y)
+
+        for offset, label in enumerate(classes):
+            # if the label fits already, ignore
+            if y[offset] == label:
+                continue
+
+            # search the next value with the right label
+            for i in range(offset + 1, len(y)):
+                if y[i] == label:
+
+                    # when found, swap positions and stop searching
+                    y[i], y[offset] = y[offset], y[i]
+                    X[i], X[offset] = X[offset], X[i]
+                    break
+
+        Network.fit(self, X, y)
+
+
+class ConvRslvqNetwork(NetworkWithRslvqLayer):
+    """
+    Big convoluted network for classifying dog breed data.
+    """
+
+    def __init__(self, n_classes, learning_rate=0.05, max_iter=20, batch_size=256):
+        """
+        Initializes the class.
+        :param n_classes: The number of output classes. Must be smaller or equal to the batch size.
+        :param learning_rate: The learning rate.
+        :param max_iter: Maximum number of iterations.
+        :param batch_size: The batch size.
+        """
+        if batch_size < n_classes:
+            raise ValueError('The batch size must be at least as big as the number of classes since the first training '
+                             'batch must contain a sample of every class!')
+
+        # Setup convolutional neural network
+        nn = nnet.NeuralNetwork(
+            layers=[
+                nnet.Conv(
+                    n_feats=16,
+                    filter_shape=(3, 3),
+                    strides=(1, 1),
+                    weight_scale=1,
+                    weight_decay=0.001,
+                ),
+                nnet.Activation('relu'),
+                nnet.Pool(
+                    pool_shape=(2, 2),
+                    strides=(2, 2),
+                    mode='max',
+                ),
+
+                nnet.Conv(
+                    n_feats=32,
+                    filter_shape=(3, 3),
+                    strides=(1, 1),
+                    weight_scale=1,
+                    weight_decay=0.001,
+                ),
+                nnet.Activation('relu'),
+                nnet.Pool(
+                    pool_shape=(2, 2),
+                    strides=(2, 2),
+                    mode='max',
+                ),
+
+                nnet.Conv(
+                    n_feats=64,
+                    filter_shape=(3, 3),
+                    strides=(1, 1),
+                    weight_scale=1,
+                    weight_decay=0.001,
+                ),
+                nnet.Activation('relu'),
+                nnet.Pool(
+                    pool_shape=(2, 2),
+                    strides=(2, 2),
+                    mode='max',
+                ),
+
+                nnet.Conv(
+                    n_feats=128,
+                    filter_shape=(3, 3),
+                    strides=(1, 1),
+                    weight_scale=1,
+                    weight_decay=0.001,
+                ),
+                nnet.Activation('relu'),
+                nnet.Pool(
+                    pool_shape=(2, 2),
+                    strides=(2, 2),
+                    mode='max',
+                ),
+
+                nnet.Flatten(),
+                RslvqLayer(n_classes, stretchToOnehot=True),
+            ],
+        )
+
+        NetworkWithRslvqLayer.__init__(self, nn, learning_rate, max_iter, batch_size)
+
+
+class DogImageNetworkComparison(Network):
+    """
+    Big convoluted network for classifying dog breed data.
+    """
+
+    def __init__(self, n_classes, learning_rate=0.05, max_iter=20, batch_size=256):
+        """
+        Initializes the class.
+        :param n_classes: The number of output classes. Must be smaller or equal to the batch size.
+        :param learning_rate: The learning rate.
+        :param max_iter: Maximum number of iterations.
+        :param batch_size: The batch size.
+        """
+        if batch_size < n_classes:
+            raise ValueError('The batch size must be at least as big as the number of classes since the first training '
+                             'batch must contain a sample of every class!')
+
+        # Setup convolutional neural network
+        nn = nnet.NeuralNetwork(
+            layers=[
+                nnet.Conv(
+                    n_feats=16,
+                    filter_shape=(3, 3),
+                    strides=(1, 1),
+                    weight_scale=1,
+                    weight_decay=0.001,
+                ),
+                nnet.Activation('relu'),
+                nnet.Pool(
+                    pool_shape=(2, 2),
+                    strides=(2, 2),
+                    mode='max',
+                ),
+
+                nnet.Conv(
+                    n_feats=32,
+                    filter_shape=(3, 3),
+                    strides=(1, 1),
+                    weight_scale=1,
+                    weight_decay=0.001,
+                ),
+                nnet.Activation('relu'),
+                nnet.Pool(
+                    pool_shape=(2, 2),
+                    strides=(2, 2),
+                    mode='max',
+                ),
+
+                nnet.Conv(
+                    n_feats=64,
+                    filter_shape=(3, 3),
+                    strides=(1, 1),
+                    weight_scale=1,
+                    weight_decay=0.001,
+                ),
+                nnet.Activation('relu'),
+                nnet.Pool(
+                    pool_shape=(2, 2),
+                    strides=(2, 2),
+                    mode='max',
+                ),
+
+                nnet.Conv(
+                    n_feats=128,
+                    filter_shape=(3, 3),
+                    strides=(1, 1),
+                    weight_scale=1,
+                    weight_decay=0.001,
+                ),
+                nnet.Activation('relu'),
+                nnet.Pool(
+                    pool_shape=(2, 2),
+                    strides=(2, 2),
+                    mode='max',
+                ),
+
+                nnet.Flatten(),
+
+            ],
+        )
+
+        Network.__init__(self, nn, learning_rate, max_iter, batch_size)
+
+
 def run_dogbreed():
     """
     Runs the network on the dogbreed data set.
@@ -262,48 +528,18 @@ def run_dogbreed():
 
     # load the images and pre-process the data for the network by normalizing it
     # zscore
-    X_train = paths_to_tensor(train_files).astype('float64') / 255
-    X_test = paths_to_tensor(test_files).astype('float64') / 255
+    X_train = paths_to_tensor(train_files, data_format='channels_first').astype('float64') / 255
+    X_test = paths_to_tensor(test_files, data_format='channels_first').astype('float64') / 255
     n_classes = np.unique(y_train).size
 
-
-    # Setup convolutional neural network
-    nn = nnet.NeuralNetwork(
-        layers=[
-            nnet.Conv(
-                n_feats=12,
-                filter_shape=(5, 5),
-                strides=(1, 1),
-                weight_scale=0.1,
-                weight_decay=0.001,
-            ),
-            nnet.Activation('relu'),
-            nnet.Pool(
-                pool_shape=(2, 2),
-                strides=(2, 2),
-                mode='max',
-            ),
-            nnet.Conv(
-                n_feats=16,
-                filter_shape=(5, 5),
-                strides=(1, 1),
-                weight_scale=0.1,
-                weight_decay=0.004,
-            ),
-            nnet.Activation('relu'),
-            nnet.Flatten(),
-            RslvqLayer(n_classes, stretchToOnehot=True),
-        ],
-    )
+    # create the network
+    nn = ConvRslvqNetwork(n_classes)
 
     # Train neural network
-    t0 = time.time()
-    nn.fit(X_train, y_train, learning_rate=0.05, max_iter=20, batch_size=512)
-    t1 = time.time()
-    print('Duration: %.1fs' % (t1-t0))
+    nn.fit(X_train, y_train)
 
     # Evaluate on test data
-    error = nn.error(X_test, y_test)
+    error = nn.evaluate(X_test, y_test)
     print('Test error rate: %.4f' % error)
 
 def run_mnist():
@@ -364,5 +600,6 @@ def run_mnist():
     error = nn.error(X_test, y_test)
     print('Test error rate: %.4f' % error)
 
+
 if __name__ == '__main__':
-    run_mnist()
+    run_dogbreed()
