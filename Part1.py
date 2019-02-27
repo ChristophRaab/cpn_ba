@@ -178,7 +178,7 @@ class DimensionReduction:
         pca.fit(flattened[0:200])
         return pca.transform(flattened)
 
-    def _flatten_data(self, features):
+    def _flatten_data(self, features, _):
         """
         Flattens all sample data to a single two-dimensional array without any processing.
         :param features: The input features
