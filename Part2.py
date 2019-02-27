@@ -703,7 +703,7 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(
         description='Run a CNN with or without RSLVQ layer on either mnist or dogbreed data set..')
-    parser.add_argument('--network', '-f', type=str,
+    parser.add_argument('--network', '-n', type=str,
                         choices=['simple-cmp', 'simplpe-rslvq', 'complex-cmp', 'complex-rslvq'], default='simple-rslvq',
                         help='Which network to use. The simple networks use only two convolutional layers, while the '
                              'complex networks use four. Networks ending with "-rslvq" use and RSLVQ classifier, while '
