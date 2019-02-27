@@ -425,6 +425,10 @@ def best_tests():
     :return:
     """
     return [
+        LvqParams(sigma=16, prototypes_per_class=24, batch_size=256, epochs=1),
+        LvqParams(sigma=.2, prototypes_per_class=24, batch_size=256, epochs=0),
+        LvqParams(sigma=.2, prototypes_per_class=64, batch_size=256, epochs=1),
+        LvqParams(sigma=.2, prototypes_per_class=64, batch_size=256, epochs=0),
         LvqParams(sigma=.2, prototypes_per_class=8, batch_size=256, epochs=4),
         LvqParams(sigma=6, prototypes_per_class=12, batch_size=128, epochs=4),
         LvqParams(sigma=6, prototypes_per_class=12, batch_size=16, epochs=12),
