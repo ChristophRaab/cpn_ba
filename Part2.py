@@ -3,11 +3,10 @@
 import argparse
 import time
 import numpy as np
-import sklearn.datasets
 import nnetcopy.nnet as nnet
 from rslvq2 import RSLVQ as nRSLVQ
 from sklearn.utils.multiclass import unique_labels
-from common import paths_to_tensor, load_dataset
+from common import paths_to_tensor, load_dataset, fetch_mldata
 from sklearn.utils import shuffle as unison_shuffle
 from scipy.stats import zscore
 import copy
@@ -671,7 +670,7 @@ def run_with_mnist_dataset(generator):
     :param generator: A lambda which takes a a number of classes and a learning rate and returns a CNN instance.
     """
     # Fetch data
-    mnist = sklearn.datasets.fetch_mldata('MNIST original')
+    mnist = fetch_mldata('MNIST original')
     split = 60000
     X_train = np.reshape(mnist.data[:split], (-1, 1, 28, 28))/255.0
     y_train = mnist.target[:split].astype("int")
