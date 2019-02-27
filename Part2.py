@@ -18,7 +18,7 @@ class RslvqLayer(nnet.layers.Layer, nnet.layers.LossMixin):
     This is an extension layer for NNET which uses RSLVQ classification. It can only occur as last layer!
     """
 
-    def __init__(self, class_amount, onehot_encode=True, sigma=14, prototypes_per_class=4, n_epochs=2, learning_rate=.0015):
+    def __init__(self, class_amount, onehot_encode=True, sigma=14, prototypes_per_class=4, n_epochs=2, learning_rate=.1):
         """
         Initializes the RslvqLayer.
         Note that one cannot set the batch size for RSLVQ since this is set to the batch size of the network.
@@ -123,7 +123,7 @@ class RslvqLayer(nnet.layers.Layer, nnet.layers.LossMixin):
         assert(len(X.shape) == 2)
         assert(len(y.shape) == 1)
 
-        return self.input_grad_from_closest(X, y)
+        return self.input_grad_from_learning(X, y)
 
     def _create_rslvq(self, batch_size):
         """
