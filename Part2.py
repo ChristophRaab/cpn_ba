@@ -18,7 +18,7 @@ class RslvqLayer(nnet.layers.Layer, nnet.layers.LossMixin):
     This is an extension layer for NNET which uses RSLVQ classification. It can only occur as last layer!
     """
 
-    def __init__(self, class_amount, onehot_encode=True, sigma=.2, prototypes_per_class=4, n_epochs=2, learning_rate=.1):
+    def __init__(self, class_amount, onehot_encode=True, sigma=.2, prototypes_per_class=8, n_epochs=2, learning_rate=.002):
         """
         Initializes the RslvqLayer.
         Note that one cannot set the batch size for RSLVQ since this is set to the batch size of the network.
@@ -111,7 +111,7 @@ class RslvqLayer(nnet.layers.Layer, nnet.layers.LossMixin):
         :param predicted_output: A onehot-encoded array in the shape (batch_size, num_categories).
         :return: The gradients for the next layer in the shape (batch_size, gradients_for_sample).
         """
-        print("Batch at %f\n" % time.time())
+        #print("Batch at %f" % time.time())
 
         # our training data is the last input
         X = self.last_input
@@ -123,7 +123,7 @@ class RslvqLayer(nnet.layers.Layer, nnet.layers.LossMixin):
         assert(len(X.shape) == 2)
         assert(len(y.shape) == 1)
 
-        return self.input_grad_from_learning(X, y)
+        return self.input_grad_from_closest(X, y)
 
     def _create_rslvq(self, batch_size):
         """
@@ -134,7 +134,7 @@ class RslvqLayer(nnet.layers.Layer, nnet.layers.LossMixin):
             sigma=self.sigma,
             prototypes_per_class=self.prototypes_per_class,
             batch_size=batch_size,
-            n_epochs=4,
+            n_epochs=self.n_epochs,
             random_state=self.rng)
 
     def input_grad_from_closest(self, X, y):
@@ -162,7 +162,10 @@ class RslvqLayer(nnet.layers.Layer, nnet.layers.LossMixin):
             self.rslvq_initialized = True
 
         # The output value needs to be highly reduced since because the network will just feed zeros
-        return rv * 0.006
+        assert(not np.any(np.isnan(rv)))
+        zv = (rv) * self.learning_rate
+        assert(not np.any(np.isnan(zv)))
+        return zv
 
     def input_grad_from_learning(self, X, y, batchwise=True):
         """
@@ -173,13 +176,19 @@ class RslvqLayer(nnet.layers.Layer, nnet.layers.LossMixin):
         :param y: The class for each input sample.
         :param batchwise: Whether to do a batch fit or a fit for each sample.
         """
+        xmod = X
+        assert(not np.any(np.isnan(X)))
+        #X = zscore(xmod)
+        #assert(not np.any(np.isnan(X)))
 
         if self.rslvq_initialized:
 
             if batchwise:
                 # save the current weights
                 pre_update = copy.deepcopy(self.rslvq.w_)
-                self.rslvq.partial_fit(X, y)
+
+                #self.rslvq.partial_fit(X, y)
+                self.rslvq._optimize(X, y, self.rslvq.random_state)
 
                 # calculate the diff and mean it across input dimensions
                 output_grad_protos = -(self.rslvq.w_ - pre_update)
@@ -187,7 +196,6 @@ class RslvqLayer(nnet.layers.Layer, nnet.layers.LossMixin):
 
                 # repeat the gradient since we did not record individual updates
                 output_grad = np.repeat(output_grad, y.shape[0], axis=0)
-                asd = 1
             else:
                 # pre-allocate the gradients for each sample
                 output_grad = np.zeros(X.shape)
@@ -207,7 +215,10 @@ class RslvqLayer(nnet.layers.Layer, nnet.layers.LossMixin):
                     #
                     output_grad[i] = np.mean(-(self.rslvq.w_ - pre_update), axis=0)
 
-            zs = zscore(output_grad) * self.learning_rate
+            assert(not np.any(np.isnan(output_grad)))
+            #zs = zscore(output_grad) * self.learning_rate
+            zs = output_grad * self.learning_rate
+            assert(not np.any(np.isnan(zs)))
             return zs
         else:
              # there is no learning on the first pass, therefore we fall back to the simple nearest prototype learning
@@ -221,7 +232,9 @@ class RslvqLayer(nnet.layers.Layer, nnet.layers.LossMixin):
             rv = self.compute_rslvq_gradients_from_nearest_matching_prototype(X, y)
             self.rslvq_initialized = True
 
+            assert(not np.any(np.isnan(rv)))
             rv = zscore(rv) * self.learning_rate
+            assert(not np.any(np.isnan(rv)))
             return rv
 
     def compute_rslvq_gradients_from_nearest_matching_prototype(self, X, y):
@@ -518,6 +531,7 @@ class ConvCmpNetwork(Network):
 
         Network.__init__(self, nn, learning_rate, max_iter, batch_size)
 
+
 class SimpleRslvqNetwork(NetworkWithRslvqLayer):
     """
     Simpler CNN with RSLVQ layer.
@@ -615,8 +629,6 @@ class SimpleCmpNetwork(NetworkWithRslvqLayer):
         )
 
         NetworkWithRslvqLayer.__init__(self, nn, learning_rate, max_iter, batch_size)
-
-
 
 
 def run_with_dogbreed_dataset(generator):
