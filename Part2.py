@@ -4,7 +4,7 @@ import argparse
 import time
 import numpy as np
 import sklearn.datasets
-import nnet.nnet as nnet
+import nnetcopy.nnet as nnet
 from RSLVQ.rslvq import RSLVQ as nRSLVQ
 from sklearn.utils.multiclass import unique_labels
 from common import paths_to_tensor, load_dataset
