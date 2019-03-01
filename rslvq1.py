@@ -7,9 +7,7 @@ Created on Fri Jun 22 09:35:11 2018
 
 @author: moritz
 
----
-
-This is the version of RSLVQ modified for use in Part II.
+This is the LVQ version modified for use with Part I.
 """
 
 import math
@@ -71,8 +69,8 @@ class RSLVQ(ClassifierMixin, StreamModel, BaseEstimator):
             raise ValueError('Batch size must be greater than 0')
         if(prototypes_per_class <= 0):
             raise ValueError('Prototypes per class must be more than 0')
-        if(n_epochs <= 0):
-            raise ValueError('Epochs must be more than 0')
+        #if(n_epochs <= 0):
+            #raise ValueError('Epochs must be more than 0')
 
     def _optimize(self, X, y, random_state):
         """Implementation of Minibatch Stochastical Gradient Descent"""
@@ -109,7 +107,7 @@ class RSLVQ(ClassifierMixin, StreamModel, BaseEstimator):
                         final_up = c * (self._p(j=j, e=x_up, prototypes=self.w_, y=label) -
                                self._p(j=j, e=x_up, prototypes=self.w_)) * d * count_per_class[c_idx].ravel()
                         
-                        if not (np.any(np.isnan(final_up))):
+                        if(np.any(np.isnan(final_up))):
                             self.w_[j] += final_up
                             
                     else:
@@ -118,7 +116,7 @@ class RSLVQ(ClassifierMixin, StreamModel, BaseEstimator):
                         d = (x_up - prototypes[j])
                         final_up = c * self._p(j=j, e=x_up, prototypes=self.w_) * d * count_per_class[c_idx].ravel()   
                         
-                        if not (np.any(np.isnan(final_up))):
+                        if(np.any(np.isnan(final_up))):
                             self.w_[j] += final_up
                         
                 k += self.batch_size
@@ -274,21 +272,20 @@ class RSLVQ(ClassifierMixin, StreamModel, BaseEstimator):
                 self.w_ = np.empty([np.sum(nb_ppc), nb_features], dtype=np.double)
                 self.c_w_ = np.empty([nb_ppc.sum()], dtype=self.classes_.dtype)
             pos = 0
-            for actClassIdx in range(len(self.classes_)):
-                actClass = self.classes_[actClassIdx]
-                nb_prot = nb_ppc[actClassIdx] # nb_ppc: prototypes per class
-                if(self.protos_initialized[actClassIdx] == 0 and actClass in unique_labels(train_lab)):
+            for actClass in range(len(self.classes_)):
+                nb_prot = nb_ppc[actClass] # nb_ppc: prototypes per class
+                if(self.protos_initialized[actClass] == 0 and self.classes_[actClass] in unique_labels(train_lab)):
                     mean = np.mean(
-                        train_set[train_lab == actClass, :], 0)
+                        train_set[train_lab == self.classes_[actClass], :], 0)
                     self.w_[pos:pos + nb_prot] = mean + (
                             random_state.rand(nb_prot, nb_features) * 2 - 1)
                     if math.isnan(self.w_[pos, 0]):
-                        print('Prototype is NaN: ', actClass)
-                        self.protos_initialized[actClassIdx] = 0
+                        print('null: ', actClass)
+                        self.protos_initialized[actClass] = 0
                     else:
-                        self.protos_initialized[actClassIdx] = 1
-
-                    self.c_w_[pos:pos + nb_prot] = actClass
+                        self.protos_initialized[actClass] = 1
+    
+                    self.c_w_[pos:pos + nb_prot] = self.classes_[actClass]
                 pos += nb_prot
         else:
             x = validation.check_array(self.initial_prototypes)
@@ -312,7 +309,7 @@ class RSLVQ(ClassifierMixin, StreamModel, BaseEstimator):
 
     def fit(self, X, y, classes=None):
         """Fit the LVQ model to the given training data and parameters using
-        SGD.
+        l-bfgs-b.
         Parameters
         ----------
         x : array-like, shape = [n_samples, n_features]
@@ -347,12 +344,12 @@ class RSLVQ(ClassifierMixin, StreamModel, BaseEstimator):
         --------
         self
         """
-        if set(unique_labels(y)).issubset(set(self.classes_)) or self.initial_fit == True:
+        if unique_labels(y) in self.classes_ or self.initial_fit == True:
             X, y, random_state = self._validate_train_parms(X, y, classes=classes)
         else:
-            print('Class {} was not learned - please declare all classes in first call of fit/partial_fit'.format(y))
-
-        random_state = validation.check_random_state(self.random_state)
+            raise ValueError('Class {} was not learned - please declare all \
+                             classes in first call of fit/partial_fit'.format(y))
+            
         self._optimize(X, y, random_state)
         return self
     

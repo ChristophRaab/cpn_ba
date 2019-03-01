@@ -3,7 +3,7 @@ import sklearn.decomposition as deco
 from queue import Empty as QEmpty
 from sklearn.utils import shuffle as combined_shuffle
 import numpy as np
-from RSLVQ.rslvq import RSLVQ as nRSLVQ
+from rslvq1 import RSLVQ as nRSLVQ
 from multiprocessing import Process as MProcess, Queue
 import threading
 import argparse
