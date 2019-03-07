@@ -685,7 +685,7 @@ def run_with_mnist_dataset(generator):
     y_train = y_train[train_idxs, ...]
 
     # Setup convolutional neural network
-    nn = generator(n_classes, 0.05)
+    nn = generator(n_classes, 0.1)
 
     # Train neural network
     nn.fit(X_train, y_train)

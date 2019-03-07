@@ -256,7 +256,7 @@ class LvqTester:
             yield x
             x += jump
 
-    def createTestScenarios(self, mean_dims=None):
+    def createTestScenarios(self):
         """
         Creates a set of test parameters to check for.
         :return: A list of test parameters, sorted by cost
@@ -267,7 +267,7 @@ class LvqTester:
                 for epochs in [1, 2, 4, 8, 12]:                    # 6 steps
                     for prototypes in [1, 2, 3, 4, 6, 8, 10, 12]:  # 8 steps
                         # about 1,9k tests
-                        tests.append(LvqParams(sigma, prototypes, epochs, batch_size, mean_dimensions=mean_dims))
+                        tests.append(LvqParams(sigma, prototypes, epochs, batch_size))
 
         return sorted(tests)
 
@@ -406,16 +406,24 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(
         description='Run RSLVQ learning accuracy tests on the Xception bottleneck feature dataset.')
-    parser.add_argument('--threads', '-t', type=int, default=2, help='Number of threads to use.')
+    parser.add_argument('--threads', '-t', type=int, default=1, help='Number of threads to use.')
     parser.add_argument('--code-path', '-p', type=str, default='CodeData', help='Path to the learning dataset.')
-    parser.add_argument('--filter', '-f', type=str, choices=['min', 'max', 'mean', 'pca', 'flatten'], default='flatten',
+    parser.add_argument('--filter', '-f', type=str, choices=['min', 'max', 'mean', 'pca', 'flatten'], default='max',
                         help='How to prepare the bottleneck features before using them with the LVQ algorithm.')
-    parser.add_argument('--big-features', action='store_true',
-                        help='Whether to mean the input to big features or small ones.')
+    parser.add_argument('--big-features', action='store_true', default=True, help='(legacy)')
+    parser.add_argument('--small-features', action='store_false', dest='big_features',
+                        help='Use small features instead of big ones.')
     parser.add_argument('--use-mp', '-m', action='store_true',
                         help='Whether to use the multiprocessing library instead of threading.')
     parser.add_argument('--shuffle', '-s', action='store_true', help='Whether to shuffle the input data set.')
     parser.add_argument('--pca-dims', type=int, default=100, help='Number of dimensions in the PCA output.')
+    parser.add_argument('--mode', '-u', type=str, choices=['best', 'batch', 'single'], default='best',
+                        help='Whether to run batch tests (batch), the ten best parameters (best) or a single '
+                             'test (single). Default is best.')
+    parser.add_argument('--sigma', type=float, default=.2, help='Sigma for single run.')
+    parser.add_argument('--batchsize', type=int, default=256, help='Batchsize for single run.')
+    parser.add_argument('--prototypes', type=int, default=8, help='Number of prototypes for single run.')
+    parser.add_argument('--epochs', type=int, default=8, help='Number of epochs for single run.')
     return parser.parse_args()
 
 
@@ -425,10 +433,6 @@ def best_tests():
     :return:
     """
     return [
-        LvqParams(sigma=16, prototypes_per_class=24, batch_size=256, epochs=1),
-        LvqParams(sigma=.2, prototypes_per_class=24, batch_size=256, epochs=0),
-        LvqParams(sigma=.2, prototypes_per_class=64, batch_size=256, epochs=1),
-        LvqParams(sigma=.2, prototypes_per_class=64, batch_size=256, epochs=0),
         LvqParams(sigma=.2, prototypes_per_class=8, batch_size=256, epochs=4),
         LvqParams(sigma=6, prototypes_per_class=12, batch_size=128, epochs=4),
         LvqParams(sigma=6, prototypes_per_class=12, batch_size=16, epochs=12),
@@ -445,7 +449,15 @@ def best_tests():
 if __name__ == "__main__":
     args = parse_args()
     tester = LvqTester(big_features=args.big_features, path=args.code_path, filter=args.filter, pca_dims=args.pca_dims, shuffle=args.shuffle)
+
     tests = best_tests()
+    if args.mode == "batch":
+        tests = tester.createTestScenarios()
+    elif args.mode == "single":
+        tests = [ LvqParams(
+            sigma=args.sigma, prototypes_per_class=args.prototypes, batch_size=args.batchsize, epochs=args.epochs
+        ) ]
+
     print('Running %d tests with%s big feature space%s and %d %s.'
           % (len(tests),
              "out" if not args.big_features else "",
