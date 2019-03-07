@@ -1,16 +1,18 @@
 # Using RSLVQ as classifier layer in a CNN
 
-This is the code belonging to the bachelors thesis.
-Note that the code uses Python 3.
-Python 2 might work, but no guarantees.
+This is the code belonging to the bachelors thesis _RSLVQ as classifier layer in a convolutional neural network_.
+The code was developed with Python 3; Python 2 might work, but it was not tested.
 
 ## Part I
 
 `Part1.py` contains the tests for part 1.
-It can run a single test, the best 10 hyperparameters found in the thesis or the batch tests.
+The RSLVQ implementation used by it is found in `rslvq1.py`.
+It can run a single test, tests with the best 10 hyperparameters found in the thesis or a whole batch of hyperparameter tests.
 Shuffling the dataset is also possible.
 Run `Part1.py --help` to see all parameters.
-The RSLVQ implementation used by it is found in `rslvq1.py`.
+The `--use-mp` option uses the multiprocessing library instead of threads.
+When running many threads this parameter helps to improve the training time.
+
 
 For it to work, the dog image dataset must be present (see [`CodeData/Instructions.md`](CodeData/Instructions.md)).
 
