@@ -2,6 +2,7 @@
 
 This is the code belonging to the bachelors thesis _RSLVQ as classifier layer in a convolutional neural network_.
 The code was developed with Python 3; Python 2 might work, but it was not tested.
+Each method in the main files has a docstring to describe what it does; therefore, feel free to dive into the code :)
 
 ## Part I
 
@@ -34,3 +35,9 @@ To see all available networks run `Part2.py --help`.
 The RSLVQ implementation for it is found in `rslvq2.py`.
 Note that due to the lower number of features the complex networks may not be used with the MNIST dataset.
 To use the dogbreed dataset it needs to be correctly set up as described above.
+
+## Other files
+
+`common.py` contains methods for loading the dataset used by both parts.
+`convert.pl` can be used to convert the output of `Part1.py` to CSV. Example: `perl convert.pl < output.txt > output.csv`.
+`mnist.mat` is the MNIST dataset used in part 2.
