@@ -14,7 +14,7 @@ import copy
 
 class RslvqLayer(nnet.layers.Layer, nnet.layers.LossMixin):
     """
-    This is an extension layer for NNET which uses RSLVQ classification. It can only occur as last layer!
+    This is an extension layer for NNET which uses RSLVQ classification. It can only be used as last layer!
     """
 
     def __init__(self, class_amount, onehot_encode=True, sigma=14, prototypes_per_class=4, n_epochs=2, learning_rate=.1):
